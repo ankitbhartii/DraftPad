@@ -127,6 +127,84 @@ const ORIGINALS_IDS = [
   406497274, 406496912,
 ];
 
+/* ──────────── Top 10 in India verified IDs & tags ──────────── */
+const TOP_INDIA_IDS = [
+  393176419, // Her cursed prince I Dhruv Taara
+  373949638, // Broken Promises
+  409747256, // seducing the senior
+  378528365, // ISHQ : PROFESSOR'S DESTINY
+  397310104, // Throne and Thread
+  388459013, // May I Come In Sir
+  262381160, // His Butterfly
+  397631792, // RIYA: HIS REPLACED BRIDE
+];
+
+const TOP_INDIA_TAGS: Record<number, string> = {
+  393176419: 'forcedmarriage',
+  373949638: 'promise',
+  409747256: 'desiromance',
+  378528365: 'unique',
+  397310104: 'indiandynasty',
+  388459013: 'adultthemes',
+  262381160: 'shy',
+  397631792: 'past',
+};
+
+/* ──────────── Top India Card with stylized rank outline number ──────────── */
+function TopIndiaCard({ story, rank, tag }: { story: Story; rank: number; tag: string }) {
+  return (
+    <Link
+      href={`/story/${story.id}`}
+      className="group flex-shrink-0 w-36 sm:w-40 space-y-2 transition-transform duration-300 hover:scale-[1.04] relative"
+    >
+      <div className="relative w-full h-52 sm:h-56 bg-zinc-800 rounded-xl border border-zinc-700/30 shadow-md group-hover:shadow-xl group-hover:shadow-black/60 transition-all duration-300">
+        
+        {/* Giant outline number sitting on top-left/bottom-left overlapping the cover */}
+        <span 
+          className="absolute -left-3 -bottom-5 text-[100px] font-black select-none z-30 font-sans tracking-tighter transition-transform duration-300 group-hover:scale-110"
+          style={{ 
+            WebkitTextStroke: '4px #0f0f12', 
+            color: '#fff',
+            paintOrder: 'stroke fill'
+          }}
+        >
+          {rank}
+        </span>
+
+        <div className="relative w-full h-full rounded-xl overflow-hidden z-25">
+          {story.cover ? (
+            <Image
+              src={story.cover}
+              alt={story.title}
+              fill
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
+              sizes="160px"
+              unoptimized
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <BookOpen className="w-8 h-8 text-zinc-600" />
+            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
+        </div>
+      </div>
+      <div className="px-0.5 space-y-1.5 pt-1">
+        {tag && (
+          <span className="inline-block text-[9px] font-extrabold bg-zinc-900 text-zinc-400 px-2 py-0.5 rounded-md border border-zinc-800 tracking-wider">
+            {tag}
+          </span>
+        )}
+        <p className="text-xs font-bold text-white leading-snug line-clamp-2 group-hover:text-[#ff6122] transition-colors">{story.title}</p>
+        <div className="flex items-center gap-2 text-[10px] text-zinc-600 pt-0.5">
+          <span className="flex items-center gap-0.5"><Eye className="w-2.5 h-2.5" />{fmt(story.readCount)}</span>
+          <span className="flex items-center gap-0.5"><Star className="w-2.5 h-2.5 text-orange-400" />{fmt(story.voteCount)}</span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 /* ──────────── Fetch helpers ──────────── */
 async function fetchSearch(q: string, limit = 20): Promise<Story[]> {
   try {
@@ -151,6 +229,7 @@ const mkShelf = (): ShelfState => ({ stories: [], loading: true });
 
 export default function HomeClient() {
   const [originals, setOriginals] = useState<ShelfState>(mkShelf());
+  const [topIndia,   setTopIndia]   = useState<ShelfState>(mkShelf());
   const [topPicks,  setTopPicks]  = useState<ShelfState>(mkShelf());
   const [romance,   setRomance]   = useState<ShelfState>(mkShelf());
   const [teenfic,   setTeenfic]   = useState<ShelfState>(mkShelf());
@@ -185,9 +264,20 @@ export default function HomeClient() {
     setOriginals({ stories, loading: false });
   };
 
+  const loadTopIndia = async () => {
+    const results = await Promise.allSettled(
+      TOP_INDIA_IDS.map(id => fetchStory(id))
+    );
+    const stories = results
+      .filter((r): r is PromiseFulfilledResult<Story> => r.status === 'fulfilled' && r.value !== null)
+      .map(r => r.value);
+    setTopIndia({ stories, loading: false });
+  };
+
   useEffect(() => {
     // Fire all shelf fetches independently — each resolves when ready
     loadOriginals();
+    loadTopIndia();
     loadShelf(setTopPicks,   'best wattpad stories', 20);
     loadShelf(setRomance,    'romance love story', 20);
     loadShelf(setTeenfic,    'teen fiction high school love', 20);
@@ -262,6 +352,31 @@ export default function HomeClient() {
       {/* ── SHELVES ── */}
       <div className="py-8 space-y-10">
         <Shelf title="Wattpad Originals" icon={<Crown className="w-4 h-4" />}      stories={originals.stories}  accentColor="text-yellow-400"   badge="Featured" loading={originals.loading} />
+        
+        {/* ── TOP 10 IN INDIA SHELF ── */}
+        <section className="space-y-3">
+          <div className="flex items-center gap-2 px-4 sm:px-6 lg:px-8">
+            <span className="text-orange-500"><TrendingUp className="w-4 h-4" /></span>
+            <h2 className="text-sm font-extrabold text-white uppercase tracking-widest">Top 10 in India</h2>
+            {topIndia.loading && <Loader2 className="w-3 h-3 text-zinc-600 animate-spin ml-auto" />}
+          </div>
+          <div className="overflow-x-auto pb-4 pt-2" style={{ scrollbarWidth: 'none' }}>
+            <div className="flex gap-6 px-6 sm:px-8 lg:px-10">
+              {topIndia.loading
+                ? Array.from({ length: 8 }).map((_, i) => <Bone key={i} />)
+                : topIndia.stories.map((s, idx) => (
+                    <TopIndiaCard 
+                      key={s.id} 
+                      story={s} 
+                      rank={idx + 1} 
+                      tag={TOP_INDIA_TAGS[s.id] || ''} 
+                    />
+                  ))
+              }
+            </div>
+          </div>
+        </section>
+
         <Shelf title="Top Picks"         icon={<TrendingUp className="w-4 h-4" />}  stories={topPicks.stories}   accentColor="text-[#ff6122]"               loading={topPicks.loading} />
         <Shelf title="Romance"           icon={<Heart className="w-4 h-4" />}       stories={romance.stories}    accentColor="text-pink-400"                loading={romance.loading} />
         <Shelf title="Teen Fiction"      icon={<GraduationCap className="w-4 h-4" />} stories={teenfic.stories}  accentColor="text-emerald-400"             loading={teenfic.loading} />
