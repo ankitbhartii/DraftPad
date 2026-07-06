@@ -2,11 +2,11 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   TrendingUp, Sparkles, Heart, BookOpen, Eye, Star, List,
   Ghost, Swords, Atom, Laugh, Scroll, Zap, GraduationCap,
-  Crown, RefreshCw, Loader2,
+  Crown, RefreshCw, Loader2, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 
 /* ──────────── Types ──────────── */
@@ -98,8 +98,42 @@ function Shelf({
   badge?: string;
   loading: boolean;
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [showLeft, setShowLeft] = useState(false);
+  const [showRight, setShowRight] = useState(false);
+
+  const checkScroll = () => {
+    if (scrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+      setShowLeft(scrollLeft > 5);
+      setShowRight(scrollLeft + clientWidth < scrollWidth - 5);
+    }
+  };
+
+  useEffect(() => {
+    checkScroll();
+    // A small timeout helps ensure the DOM has rendered completely before checking scrollWidth
+    const timer = setTimeout(checkScroll, 100);
+    window.addEventListener('resize', checkScroll);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', checkScroll);
+    };
+  }, [stories, loading]);
+
+  const handleScroll = (dir: 'left' | 'right') => {
+    if (scrollRef.current) {
+      const { clientWidth } = scrollRef.current;
+      const scrollAmt = clientWidth * 0.75;
+      scrollRef.current.scrollBy({
+        left: dir === 'left' ? -scrollAmt : scrollAmt,
+        behavior: 'smooth'
+      });
+    }
+  };
+
   return (
-    <section className="space-y-3">
+    <section className="space-y-3 relative group">
       <div className="flex items-center gap-2 px-4 sm:px-6 lg:px-8">
         <span className={accentColor}>{icon}</span>
         <h2 className="text-sm font-extrabold text-white uppercase tracking-widest">{title}</h2>
@@ -107,12 +141,42 @@ function Shelf({
         {loading && <Loader2 className="w-3 h-3 text-zinc-600 animate-spin ml-auto" />}
         {!loading && <span className="ml-auto text-[10px] text-zinc-700 font-semibold">{stories.length} books</span>}
       </div>
-      <div className="overflow-x-auto pb-3" style={{ scrollbarWidth: 'none' }}>
-        <div className="flex gap-4 px-4 sm:px-6 lg:px-8">
-          {loading
-            ? Array.from({ length: 8 }).map((_, i) => <Bone key={i} />)
-            : stories.map(s => <Card key={s.id} story={s} />)
-          }
+      
+      <div className="relative px-4 sm:px-6 lg:px-8">
+        {/* Left Arrow Button */}
+        {showLeft && (
+          <button
+            onClick={() => handleScroll('left')}
+            className="absolute left-1 sm:left-2 top-1/2 -translate-y-1/2 z-40 bg-white hover:bg-zinc-100 text-zinc-900 w-10 h-10 rounded-full flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.3)] transition-all hover:scale-110 active:scale-95 border border-zinc-200"
+            aria-label="Scroll left"
+          >
+            <ChevronLeft className="w-6 h-6 stroke-[2.5]" />
+          </button>
+        )}
+
+        {/* Right Arrow Button */}
+        {showRight && (
+          <button
+            onClick={() => handleScroll('right')}
+            className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 z-40 bg-white hover:bg-zinc-100 text-zinc-900 w-10 h-10 rounded-full flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.3)] transition-all hover:scale-110 active:scale-95 border border-zinc-200"
+            aria-label="Scroll right"
+          >
+            <ChevronRight className="w-6 h-6 stroke-[2.5]" />
+          </button>
+        )}
+
+        <div 
+          ref={scrollRef}
+          onScroll={checkScroll}
+          className="overflow-x-auto pb-3 hide-scrollbar scroll-smooth" 
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
+          <div className="flex gap-4">
+            {loading
+              ? Array.from({ length: 8 }).map((_, i) => <Bone key={i} />)
+              : stories.map(s => <Card key={s.id} story={s} />)
+            }
+          </div>
         </div>
       </div>
     </section>
@@ -298,6 +362,39 @@ export default function HomeClient() {
   const featured = originals.stories[0] ?? topPicks.stories[0] ?? null;
   const anyLoaded = !originals.loading || !topPicks.loading;
 
+  const topIndiaScrollRef = useRef<HTMLDivElement>(null);
+  const [showIndiaLeft, setShowIndiaLeft] = useState(false);
+  const [showIndiaRight, setShowIndiaRight] = useState(false);
+
+  const checkIndiaScroll = () => {
+    if (topIndiaScrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = topIndiaScrollRef.current;
+      setShowIndiaLeft(scrollLeft > 5);
+      setShowIndiaRight(scrollLeft + clientWidth < scrollWidth - 5);
+    }
+  };
+
+  useEffect(() => {
+    checkIndiaScroll();
+    const timer = setTimeout(checkIndiaScroll, 100);
+    window.addEventListener('resize', checkIndiaScroll);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', checkIndiaScroll);
+    };
+  }, [topIndia.stories, topIndia.loading]);
+
+  const handleIndiaScroll = (dir: 'left' | 'right') => {
+    if (topIndiaScrollRef.current) {
+      const { clientWidth } = topIndiaScrollRef.current;
+      const scrollAmt = clientWidth * 0.75;
+      topIndiaScrollRef.current.scrollBy({
+        left: dir === 'left' ? -scrollAmt : scrollAmt,
+        behavior: 'smooth'
+      });
+    }
+  };
+
   return (
     <main className="min-h-screen bg-[#0f0f12] text-white pb-20">
 
@@ -354,25 +451,55 @@ export default function HomeClient() {
         <Shelf title="Wattpad Originals" icon={<Crown className="w-4 h-4" />}      stories={originals.stories}  accentColor="text-yellow-400"   badge="Featured" loading={originals.loading} />
         
         {/* ── TOP 10 IN INDIA SHELF ── */}
-        <section className="space-y-3">
+        <section className="space-y-3 relative group">
           <div className="flex items-center gap-2 px-4 sm:px-6 lg:px-8">
             <span className="text-orange-500"><TrendingUp className="w-4 h-4" /></span>
             <h2 className="text-sm font-extrabold text-white uppercase tracking-widest">Top 10 in India</h2>
             {topIndia.loading && <Loader2 className="w-3 h-3 text-zinc-600 animate-spin ml-auto" />}
           </div>
-          <div className="overflow-x-auto pb-4 pt-2" style={{ scrollbarWidth: 'none' }}>
-            <div className="flex gap-6 px-6 sm:px-8 lg:px-10">
-              {topIndia.loading
-                ? Array.from({ length: 8 }).map((_, i) => <Bone key={i} />)
-                : topIndia.stories.map((s, idx) => (
-                    <TopIndiaCard 
-                      key={s.id} 
-                      story={s} 
-                      rank={idx + 1} 
-                      tag={TOP_INDIA_TAGS[s.id] || ''} 
-                    />
-                  ))
-              }
+          
+          <div className="relative px-4 sm:px-6 lg:px-8">
+            {/* Left Arrow Button */}
+            {showIndiaLeft && (
+              <button
+                onClick={() => handleIndiaScroll('left')}
+                className="absolute left-1 sm:left-2 top-1/2 -translate-y-1/2 z-40 bg-white hover:bg-zinc-100 text-zinc-900 w-10 h-10 rounded-full flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.3)] transition-all hover:scale-110 active:scale-95 border border-zinc-200"
+                aria-label="Scroll left"
+              >
+                <ChevronLeft className="w-6 h-6 stroke-[2.5]" />
+              </button>
+            )}
+
+            {/* Right Arrow Button */}
+            {showIndiaRight && (
+              <button
+                onClick={() => handleIndiaScroll('right')}
+                className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 z-40 bg-white hover:bg-zinc-100 text-zinc-900 w-10 h-10 rounded-full flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.3)] transition-all hover:scale-110 active:scale-95 border border-zinc-200"
+                aria-label="Scroll right"
+              >
+                <ChevronRight className="w-6 h-6 stroke-[2.5]" />
+              </button>
+            )}
+
+            <div 
+              ref={topIndiaScrollRef}
+              onScroll={checkIndiaScroll}
+              className="overflow-x-auto pb-4 pt-2 hide-scrollbar scroll-smooth" 
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              <div className="flex gap-6 px-4">
+                {topIndia.loading
+                  ? Array.from({ length: 8 }).map((_, i) => <Bone key={i} />)
+                  : topIndia.stories.map((s, idx) => (
+                      <TopIndiaCard 
+                        key={s.id} 
+                        story={s} 
+                        rank={idx + 1} 
+                        tag={TOP_INDIA_TAGS[s.id] || ''} 
+                      />
+                    ))
+                }
+              </div>
             </div>
           </div>
         </section>
