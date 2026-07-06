@@ -319,23 +319,41 @@ export default function HomeClient() {
   };
 
   const loadOriginals = async () => {
+    // 1. Fetch pinned high-quality originals
     const results = await Promise.allSettled(
       ORIGINALS_IDS.slice(0, 20).map(id => fetchStory(id))
     );
-    const stories = results
+    const pinned = results
       .filter((r): r is PromiseFulfilledResult<Story> => r.status === 'fulfilled' && r.value !== null)
       .map(r => r.value);
-    setOriginals({ stories, loading: false });
+
+    // 2. Fetch live dynamic search results for newest Wattpad originals
+    const live = await fetchSearch('wattpad originals complete', 15);
+
+    // 3. Merge lists and filter out duplicates
+    const seen = new Set(pinned.map(s => s.id));
+    const merged = [...pinned, ...live.filter(s => !seen.has(s.id))];
+
+    setOriginals({ stories: merged, loading: false });
   };
 
   const loadTopIndia = async () => {
+    // 1. Fetch pinned curated Top India stories
     const results = await Promise.allSettled(
       TOP_INDIA_IDS.map(id => fetchStory(id))
     );
-    const stories = results
+    const pinned = results
       .filter((r): r is PromiseFulfilledResult<Story> => r.status === 'fulfilled' && r.value !== null)
       .map(r => r.value);
-    setTopIndia({ stories, loading: false });
+
+    // 2. Fetch live search results for trending Desi forced marriage/romance stories
+    const live = await fetchSearch('desi romance forced marriage', 10);
+
+    // 3. Merge lists and filter out duplicates
+    const seen = new Set(pinned.map(s => s.id));
+    const merged = [...pinned, ...live.filter(s => !seen.has(s.id))];
+
+    setTopIndia({ stories: merged, loading: false });
   };
 
   useEffect(() => {
