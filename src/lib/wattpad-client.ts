@@ -66,14 +66,14 @@ export interface WattpadSearchResult {
   nexturl?: string;
 }
 
-async function request(url: string): Promise<any> {
+async function request(url: string, timeoutMs = 7000): Promise<any> {
   const res = await fetch(url, {
     headers: HEADERS,
-    signal: AbortSignal.timeout(10000),
+    signal: AbortSignal.timeout(timeoutMs),
     cache: 'no-store',
   });
   if (!res.ok) {
-    throw new Error(`Wattpad API error ${res.status}: ${res.statusText} for ${url}`);
+    throw new Error(`Wattpad API error ${res.status}: ${res.statusText}`);
   }
   return res.json();
 }
@@ -179,18 +179,20 @@ export async function searchByCategory(category: string, limit = 20, mature = fa
 }
 
 /**
- * Fetch specific stories by their Wattpad IDs (for Originals, featured picks etc.)
+ * Fetch specific stories by their Wattpad IDs — all in parallel with per-request timeout.
  */
 export async function getStoriesByIds(ids: (number | string)[]): Promise<WattpadStory[]> {
-  const fields = 'id,title,voteCount,readCount,description,completed,mature,cover,url,user(name,avatar),numParts,mainCategory,mainCategoryEnglish';
+  const fields = 'id,title,voteCount,readCount,description,completed,mature,cover,url,user(name,avatar),numParts,mainCategory';
   const results = await Promise.allSettled(
     ids.map(id =>
-      request(`${API_V3}/stories/${id}?fields=${encodeURIComponent(fields)}`)
+      request(`${API_V3}/stories/${id}?fields=${encodeURIComponent(fields)}`, 6000)
     )
   );
   return results
-    .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled')
-    .map(r => r.value);
+    .filter((r): r is PromiseFulfilledResult<any> =>
+      r.status === 'fulfilled' && !!r.value?.id && !!r.value?.cover && !!r.value?.title
+    )
+    .map(r => r.value as WattpadStory);
 }
 
 /**
@@ -214,16 +216,50 @@ export async function getHomeShelves(): Promise<{
   lgbtq: WattpadStory[];
   newadult: WattpadStory[];
 }> {
-  // Known Wattpad Originals IDs (top books that won't appear in regular search)
+  // ── Top 40 Wattpad Originals — all fetched in parallel for fast SSR ──
   const ORIGINALS_IDS = [
+    // Classic originals (most popular)
     80428185,   // Through My Window – Ariana Godoy
-    23249000,   // Falling For The Bad Girl
-    33685796,   // After – Anna Todd
-    64872087,   // The QB Bad Boy and Me
-    86238901,   // Cupid's Match
-    117757080,  // My Husband's Mistress
-    149080375,  // Saving Everest
-    175843888,  // Flawed Heart
+    406237427,  // Hell University (English Version) – KnightInBlack
+    18024139,   // Chasing Red – isabelleronin
+    276397008,  // Always Red – isabelleronin
+    17846448,   // The Hoodie Girl – yuenwrites
+    128716730,  // Still With Me – AvaViolet
+    890487,     // Float – ToastedBagels
+    105872,     // A and D – fallenbabybubu
+    73995048,   // Belle Morte – Bella_Higgin
+    24288443,   // The Locker Exchange – 4nnrae
+    206445908,  // Sidelined: The QB and Me
+    76849200,   // Crossbones (Kingdom of Bones #1)
+    113049401,  // Dark Tides (Kingdom of Bones #2)
+    32044269,   // 24 Hours in Paris
+    262772583,  // True (Male x Male) – Evan_Binley
+    206445142,  // Saving Everest
+    206439698,  // Cupid's Match
+    301996676,  // POSSESSIVE SERIES | C.C.
+    406502745,  // From a Knight to a Lady
+    327021014,  // Crimson Heart – HYBE_STORIES
+    294966028,  // DARK MOON: THE BLOOD ALTAR
+    294965960,  // 7FATES: CHAKHO
+    // WEBTOON New Releases
+    406496461,  // I Gain Infinite Gold Just By Waiting
+    406497098,  // Please Obsess Over Me
+    406496269,  // Betrayal of Dignity
+    406496775,  // My Sister is a Monster
+    406497274,  // The Golden Forest
+    406496213,  // An Entwined Destiny: The Servant and Guide
+    406496912,  // Necromancer Academy and the Genius Summoner
+    406496379,  // God-Tier Enhancement: My Upgrades Never Fail
+    406496310,  // Finding Camellia
+    406496721,  // My Elegant Tyrant
+    406496566,  // Karma Haunts the Villainous Wife
+    406496647,  // Magic Monopoly
+    386755842,  // The First Night with the Duke
+    389640875,  // The Remarried Empress
+    390375614,  // The Greatest Estate Developer
+    386798884,  // Explosive Romance
+    384856681,  // Miss Pendleton
+    390374508,  // Noble in Name, Vulgar at Heart
   ];
 
   const [originals, topPicks, romance, teenfiction, fantasy, mystery, scifi, horror,
